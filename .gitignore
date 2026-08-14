@@ -1,0 +1,5 @@
+build/
+
+# Doxygen output
+html/
+latex/
