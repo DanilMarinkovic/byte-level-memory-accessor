@@ -30,18 +30,6 @@ auto template_compress(T value)
     }
 }
 
-//The halves recombine into the value, the bits below them reading as zero
-template <std::size_t precision>
-double template_decompress(const split_value<precision> value)
-{
-    const uint64_t bits{(static_cast<uint64_t>(value.high) << high_shift<precision>)
-                        | (static_cast<uint64_t>(value.low) << low_shift<precision>)};
-    double result;
-    std::memcpy(&result, &bits, sizeof(result));
-    return result;
-}
-
-
 template <std::size_t precision>
 void scalar_compress(const double* input, compressed_type_t<precision>* output, size_t N)
 {
@@ -86,6 +74,13 @@ double decompress_scalar(const T value)
     else                               return template_decompress(value);
 }
 
+//A split value carries its precision in its type, so it decompresses without being told
+template <std::size_t precision>
+double decompress_scalar(const split_value<precision> value)
+{
+    return template_decompress(value);
+}
+
 //A split precision is kept as two arrays, so it takes an output for each half
 template <std::size_t precision>
 void scalar_compress(const double* input, typename split_halves<precision>::high_t* high,
@@ -113,14 +108,14 @@ template <std::size_t precision>
 void scalar_compress(const double* input, split_array<precision>& output)
 {
     static_assert(is_split_v<precision>, "Only split precisions have two halves.\n");
-    scalar_compress<precision>(input, output.high.get(), output.low.get(), output.size);
+    scalar_compress<precision>(input, output.high_data(), output.low_data(), output.size());
 }
 
 template <std::size_t precision>
 void scalar_decompress(const split_array<precision>& input, double* output)
 {
     static_assert(is_split_v<precision>, "Only split precisions have two halves.\n");
-    scalar_decompress<precision>(input.high.get(), input.low.get(), output, input.size);
+    scalar_decompress<precision>(input.high_data(), input.low_data(), output, input.size());
 }
 
 template <std::size_t precision>
@@ -137,6 +132,23 @@ split_array<precision> scalar_compress(const std::vector<double>& input)
 {
     static_assert(is_split_v<precision>, "Only split precisions have two halves.\n");
     return scalar_compress<precision>(input.data(), input.size());
+}
+
+//Sizes its output to its input, matching how the whole precisions take a vector
+template <std::size_t precision>
+void scalar_compress(const std::vector<double>& input, split_array<precision>& output)
+{
+    static_assert(is_split_v<precision>, "Only split precisions have two halves.\n");
+    if (output.size() != input.size()) output = make_split_array<precision>(input.size());
+    scalar_compress<precision>(input.data(), output);
+}
+
+template <std::size_t precision>
+void scalar_decompress(const split_array<precision>& input, std::vector<double>& output)
+{
+    static_assert(is_split_v<precision>, "Only split precisions have two halves.\n");
+    output.resize(input.size());
+    scalar_decompress<precision>(input, output.data());
 }
 
 template <typename T>

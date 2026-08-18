@@ -316,13 +316,13 @@ void intrinsics_decompress(const typename split_halves<precision>::high_t* high,
 template <std::size_t precision>
 void intrinsics_compress(const double* input, split_array<precision>& output)
 {
-    intrinsics_compress<precision>(input, output.high.get(), output.low.get(), output.size);
+    intrinsics_compress<precision>(input, output.high_data(), output.low_data(), output.size());
 }
 
 template <std::size_t precision>
 void intrinsics_decompress(const split_array<precision>& input, double* output)
 {
-    intrinsics_decompress<precision>(input.high.get(), input.low.get(), output, input.size);
+    intrinsics_decompress<precision>(input.high_data(), input.low_data(), output, input.size());
 }
 
 template <std::size_t precision>
@@ -339,6 +339,23 @@ split_array<precision> intrinsics_compress(const std::vector<double>& input)
 {
     static_assert(is_split_v<precision>, "Only split precisions have two halves.\n");
     return intrinsics_compress<precision>(input.data(), input.size());
+}
+
+//Sizes its output to its input, matching how the whole precisions take a vector
+template <std::size_t precision>
+void intrinsics_compress(const std::vector<double>& input, split_array<precision>& output)
+{
+    static_assert(is_split_v<precision>, "Only split precisions have two halves.\n");
+    if (output.size() != input.size()) output = make_split_array<precision>(input.size());
+    intrinsics_compress<precision>(input.data(), output);
+}
+
+template <std::size_t precision>
+void intrinsics_decompress(const split_array<precision>& input, std::vector<double>& output)
+{
+    static_assert(is_split_v<precision>, "Only split precisions have two halves.\n");
+    output.resize(input.size());
+    intrinsics_decompress<precision>(input, output.data());
 }
 
 template <typename T>
@@ -413,5 +430,21 @@ template <typename T, std::size_t N>
 void intrinsics_decompress(const std::array<T, N>& input, std::array<double, N>& output)
 {
     intrinsics_decompress(input.data(), output.data(), N);
+}
+
+//Vector wrappers, so the vectorised route is reachable without unwrapping to pointers
+template <std::size_t precision, typename T>
+void intrinsics_compress(const std::vector<T>& input,
+                         std::vector<compressed_type_t<precision>>& output)
+{
+    output.resize(input.size());
+    intrinsics_compress<precision>(input.data(), output.data(), input.size());
+}
+
+template <typename T>
+void intrinsics_decompress(const std::vector<T>& input, std::vector<double>& output)
+{
+    output.resize(input.size());
+    intrinsics_decompress(input.data(), output.data(), input.size());
 }
 
