@@ -1,16 +1,18 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Danil Marinkovic
+
 #pragma once
 
-#include <iostream>
-#include <bitset>
 #include <cstdint>
-#include <iomanip>
 #include <cstring>
 #include <vector>
+#include <array>
 
 #include "types.hpp"
-
+namespace bytelevel
+{
 template <std::size_t precision, typename T>
-auto template_compress(T value)
+auto compress_value(T value)
 {
     static_assert(precision == 16 || precision == 32 || is_split_v<precision>,
     "Precision must be 16, 32 or a split precision.\n");
@@ -34,7 +36,7 @@ template <std::size_t precision>
 void scalar_compress(const double* input, compressed_type_t<precision>* output, size_t N)
 {
     for (size_t i = 0; i < N; i++)
-        output[i] = template_compress<precision>(input[i]);
+        output[i] = compress_value<precision>(input[i]);
 }
 
 template <std::size_t precision, std::size_t N>
@@ -56,29 +58,20 @@ void scalar_compress(const std::vector<double>& input, std::vector<compressed_ty
     scalar_compress<precision>(input.data(), output.data(), input.size());
 }
 
+//Rebuilds a value from its leading bits, the bits below them reading as zero.
+//A double is already whole, so it passes straight through.
 template <typename T>
-double template_decompress(T value)
-{
-    size_t shift = 64 - sizeof(T) * 8;
-    uint64_t bits {static_cast<uint64_t>(value) << shift};
-    double d;
-    std::memcpy(&d, &bits, sizeof(d));
-    return d;
-}
-
-template <typename T>
-double decompress_scalar(const T value)
+double decompress_value(const T value)
 {
     static_assert(is_value_type_v<T>, "Value must be a double, uint32_t or uint16_t.\n");
     if constexpr (sizeof(T) * 8 == 64) return value;
-    else                               return template_decompress(value);
-}
-
-//A split value carries its precision in its type, so it decompresses without being told
-template <std::size_t precision>
-double decompress_scalar(const split_value<precision> value)
-{
-    return template_decompress(value);
+    else
+    {
+        const uint64_t bits{static_cast<uint64_t>(value) << (64 - sizeof(T) * 8)};
+        double result;
+        std::memcpy(&result, &bits, sizeof(result));
+        return result;
+    }
 }
 
 //A split precision is kept as two arrays, so it takes an output for each half
@@ -89,7 +82,7 @@ void scalar_compress(const double* input, typename split_halves<precision>::high
     static_assert(is_split_v<precision>, "Only split precisions have two halves.\n");
     for (size_t i{}; i < N; i++)
     {
-        const split_value<precision> compressed{template_compress<precision>(input[i])};
+        const split_value<precision> compressed{compress_value<precision>(input[i])};
         high[i] = compressed.high;
         low[i] = compressed.low;
     }
@@ -101,7 +94,7 @@ void scalar_decompress(const typename split_halves<precision>::high_t* high,
 {
     static_assert(is_split_v<precision>, "Only split precisions have two halves.\n");
     for (size_t i{}; i < N; i++)
-        output[i] = template_decompress(split_value<precision>{high[i], low[i]});
+        output[i] = decompress_value(split_value<precision>{high[i], low[i]});
 }
 
 template <std::size_t precision>
@@ -155,7 +148,7 @@ template <typename T>
 void scalar_decompress(const T* input, double* output, size_t N)
 {
     for (size_t i{}; i < N; i++)
-        output[i] = template_decompress(input[i]);
+        output[i] = decompress_value(input[i]);
 }
 
 template <typename T, std::size_t N>
@@ -177,22 +170,4 @@ void scalar_decompress(const std::vector<T>& input, std::vector<double>& output)
     scalar_decompress(input.data(), output.data(), input.size());
 }
 
-
-
-template<std::size_t precision>
-void template_roundTrip(double d)
-{
-    uint64_t original_bits;
-    std::memcpy(&original_bits, &d, sizeof(original_bits));
-    
-    auto compressed {template_compress<precision>(d)};
-    
-    auto decompressed {template_decompress(compressed)};
-    uint64_t decompressed_bits;
-    std::memcpy(&decompressed_bits, &decompressed, sizeof(decompressed_bits));
-
-    std::cout << "Original: " << std::setprecision(20) << d << " bits: " << std::bitset<64>{original_bits} << "\n";
-    std::cout << "Compressed bits: " << std::bitset<precision>{compressed} << "\n";
-    std::cout << std::setprecision(20) << "Decompressed: " << decompressed << " decompressed bits: " 
-    << std::bitset<64> {decompressed_bits} << "\n";
-}
+} // namespace bytelevel

@@ -1,0 +1,83 @@
+/**
+ * \mainpage Byte Level Memory Accessor
+ *
+ * This library is for compressing IEE754 doubles to their leading bits using AVX512 
+ * instructions.
+ * 
+ * \section main_headers Headers
+ *
+ * \code{.cpp}
+ * #include <byte-level-memory-accessor/scalar.hpp>   // scalar kernels
+ * #include <byte-level-memory-accessor/simd.hpp>     // vectorised kernels, includes scalar.hpp
+ * \endcode
+ *
+ * Most functions you will need will be in the bytelevel namespace, bytelevel::implementation
+ * holds the actual kernels if you need those.
+ *
+ * \section main_single A single value
+ *
+ * bytelevel::compress_value<P>() compresses a double to its top P bits
+ * so bytelevel::decompress_value() decompresses a compressed value back to a double
+ *
+ * \code{.cpp}
+ * auto compressed = bytelevel::compress_value<32>(3.14159);   // uint32_t
+ * double back = bytelevel::decompress_value(compressed);
+ * \endcode
+ *
+ * \section main_whole Arrays at 16 and 32 bits
+ *
+ * Compressed values are stored in a container of bytelevel::compressed_type_t, which is
+ * `uint16_t` or `uint32_t`. The output is sized to match the input.
+ *
+ * \snippet basic_compression.cpp compress-vector-32
+ *
+ * \section main_split Arrays at 24 and 48 bits
+ *
+ * These precisions have no native integer type, so each value is split across two arrays,
+ * held together by a bytelevel::split_array. You never need to handle the two halves: the array
+ * reports its own size and indexes as though it held doubles.
+ *
+ * \snippet split_precision.cpp compress-vector-48
+ *
+ * It iterates as one sequence of values too.
+ *
+ * \snippet split_precision.cpp iterate-48
+ *
+ * \note Indexing returns a value rather than a reference, because a value is rebuilt from
+ * two halves on each read. Elements therefore cannot be assigned to; recompress instead.
+ * It is best practice to use all compressed values as read only, but it is especially important
+ * for values held in a spit_array as they won't compile or may compile and not do what you expect.
+ * If you need to make a change to one of these values, decompress it and make your change and then recompress.
+ * \section main_tiering Reusing the high half
+ *
+ * The high half of a 48 bit array is bit for bit the 32 bit compression of the same input,
+ * and the high half of a 24 bit array is the 16 bit compression. A coarser pass can read
+ * that array alone and ignore the low half entirely, with no conversion step.
+ *
+ * \snippet tiered_precision.cpp tiering
+ *
+ * \section main_backends Scalar and vectorised
+ *
+ * bytelevel::compress() and bytelevel::decompress() are the vectorised path and the usual
+ * choice. bytelevel::scalar_compress() and bytelevel::scalar_decompress() are the reference
+ * implementation and take the same arguments. Both produce identical results.
+ *
+ * The vectorised kernels use AVX-512, processing eight values per iteration: a full 512 bit
+ * register of doubles is loaded, shifted, and narrowed to the compressed width in one pass.
+ * These kernels explicitly guarantee the compiler generates high performance vectorised assembly.
+ * \section main_pitfalls Pitfalls
+ *
+ * Compressed values are plain unsigned integers, so assigning a double to one converts it
+ * arithmetically instead of compressing it, and does so silently.
+ *
+ * \code{.cpp}
+ * compressed[i] = 7.125;                              // stores the integer 7
+ * compressed[i] = bytelevel::compress_value<32>(7.125);  // correct
+ * \endcode
+ *
+ * Building with `-Wconversion` reports the first form.
+ *
+ * \section main_licence Licence
+ *
+ * Released under the MIT Licence.
+ */

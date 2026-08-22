@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Danil Marinkovic
+
 #pragma once
 
 #include <immintrin.h>
@@ -7,7 +10,8 @@
 #include <cstddef>
 #include <cstring>
 #include <iterator>
-
+namespace bytelevel
+{
 using register256i = __m256i;
 using register256d = __m256d;
 using register128i = __m128i;
@@ -75,7 +79,7 @@ inline constexpr std::size_t low_shift{64 - precision};
 
 //The halves recombine into the value, the bits below them reading as zero
 template <std::size_t precision>
-double template_decompress(const split_value<precision> value)
+double decompress_value(const split_value<precision> value)
 {
     const uint64_t bits{(static_cast<uint64_t>(value.high) << high_shift<precision>)
                         | (static_cast<uint64_t>(value.low) << low_shift<precision>)};
@@ -148,7 +152,7 @@ struct split_array
 
     double operator[](const std::size_t index) const
     {
-        return template_decompress(split_value<precision>{high[index], low[index]});
+        return decompress_value(split_value<precision>{high[index], low[index]});
     }
 
     //The halves stay reachable, so a lower precision can read the high array on its own
@@ -176,3 +180,4 @@ inline constexpr bool is_value_type_v{std::is_same_v<T, double>
                                       || std::is_same_v<T, compressed_type_t<32>>
                                       || std::is_same_v<T, compressed_type_t<16>>};
 
+} // namespace bytelevel

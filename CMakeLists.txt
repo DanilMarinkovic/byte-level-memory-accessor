@@ -21,6 +21,7 @@ target_compile_options(bytelevel INTERFACE
     $<$<CXX_COMPILER_ID:GNU,Clang>:-mavx2 -mavx512f -mavx512dq -mavx512bw -mavx512vl>)
 
 option(BYTELEVEL_BUILD_TESTS "Build byte level memory accessor tests" ${PROJECT_IS_TOP_LEVEL})
+option(BYTELEVEL_BUILD_EXAMPLES "Build byte level memory accessor examples" ${PROJECT_IS_TOP_LEVEL})
 option(BYTELEVEL_INSTALL "Generate install target for bytelevel" ${PROJECT_IS_TOP_LEVEL})
 
 if(BYTELEVEL_BUILD_TESTS)
@@ -35,13 +36,26 @@ if(BYTELEVEL_BUILD_TESTS)
 
     add_executable(test_functionality test/test_functionality.cpp)
     target_link_libraries(test_functionality PRIVATE bytelevel GTest::gtest_main)
-    target_compile_options(test_functionality PRIVATE -O3)
-    gtest_discover_tests(test_functionality)
+    target_compile_options(test_functionality PRIVATE -O3 -Wconversion)
+    # Enumerate tests when they are run rather than at build time, so that building
+    # never requires executing the binary on the host that compiled it
+    gtest_discover_tests(test_functionality DISCOVERY_MODE PRE_TEST)
+endif()
+
+if(BYTELEVEL_BUILD_EXAMPLES)
+    foreach(example basic_compression split_precision tiered_precision)
+        add_executable(${example} examples/${example}.cpp)
+        target_link_libraries(${example} PRIVATE bytelevel)
+        target_compile_options(${example} PRIVATE -O3 -Wconversion)
+    endforeach()
 endif()
 
 if(BYTELEVEL_INSTALL)
     install(DIRECTORY include/byte-level-memory-accessor
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+    install(FILES LICENSE
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/bytelevel)
 
     install(TARGETS bytelevel EXPORT bytelevel-targets)
 
