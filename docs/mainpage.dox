@@ -2,7 +2,7 @@
  * \mainpage Byte Level Memory Accessor
  *
  * This library is for compressing IEE754 doubles to their leading bits using AVX512 
- * instructions.
+ * instructions. It can compress single doubles or arrays of doubles.
  * 
  * \section main_headers Headers
  *
@@ -67,8 +67,8 @@
  * These kernels explicitly guarantee the compiler generates high performance vectorised assembly.
  * \section main_pitfalls Pitfalls
  *
- * Compressed values are plain unsigned integers, so assigning a double to one converts it
- * arithmetically instead of compressing it, and does so silently.
+ * Compressed values are plain unsigned integers, so assigning a double to one silently converts it
+ * arithmetically instead of compressing it.
  *
  * \code{.cpp}
  * compressed[i] = 7.125;                              // stores the integer 7

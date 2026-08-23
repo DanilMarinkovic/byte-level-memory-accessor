@@ -16,7 +16,6 @@ int main()
     bytelevel::split_array<48> compressed;
     bytelevel::compress<48>(input, compressed);
 
-    //Indexing recombines the two halves, so a single value needs no mention of them
     const double fourth{compressed[3]};
 
     std::vector<double> decompressed;
