@@ -59,7 +59,6 @@ void scalar_compress(const std::vector<double>& input, std::vector<compressed_ty
 }
 
 //Rebuilds a value from its leading bits, the bits below them reading as zero.
-//A double is already whole, so it passes straight through.
 template <typename T>
 double decompress_value(const T value)
 {

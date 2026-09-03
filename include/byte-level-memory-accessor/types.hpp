@@ -108,7 +108,6 @@ struct split_array
     using low_t = typename split_halves<precision>::low_t;
     using value_type = double;
 
-    //Recombining two halves builds a value, so there is no stored double to refer to
     class const_iterator
     {
         const split_array* array{};

@@ -573,3 +573,25 @@ TYPED_TEST(SplitTest, HighHalfMatchesWholePrecision)
         EXPECT_EQ(split.high_data()[i], whole_compressed[i])
             << "high half is not the " << whole << " bit compression at index " << i;
 }
+
+//Decompressing doubles copies them across, whichever instruction set is compiled in.
+//The AVX-512 path once discarded every branch for this type and silently did nothing.
+TEST(WholeValueTest, DecompressingDoublesCopiesThem)
+{
+    constexpr size_t N{10007};
+    std::mt19937_64 rng{1};
+    std::uniform_real_distribution<double> dist{-1e10, 1e10};
+
+    std::vector<double> input(N);
+    for (auto& value : input) value = dist(rng);
+
+    std::vector<double> simd_out(N, -1.0), scalar_out(N, -1.0);
+    decompress(input.data(), simd_out.data(), N);
+    scalar_decompress(input.data(), scalar_out.data(), N);
+
+    for (size_t i{}; i < N; i++)
+    {
+        EXPECT_EQ(simd_out[i], input[i]) << "vectorised copy mismatch at index " << i;
+        EXPECT_EQ(scalar_out[i], input[i]) << "scalar copy mismatch at index " << i;
+    }
+}
